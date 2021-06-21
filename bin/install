@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+[[ -z ${ASDF_INSTALL_TYPE+x} ]] && echo "ASDF_INSTALL_TYPE is required" && exit 1
+[[ -z ${ASDF_INSTALL_VERSION+x} ]] && echo "ASDF_INSTALL_VERSION is required" && exit 1
+[[ -z ${ASDF_INSTALL_PATH+x} ]] && echo "ASDF_INSTALL_PATH is required" && exit 1
+
+install() {
+	local install_type=$1
+	[[ ${install_type} != "version" ]] && echo "intall type, ${install_type}, is not supported" && exit 1
+
+	local version=$2
+	local install_path=$3
+
+	local bin_install_path="${install_path}/bin"
+
+	local platform
+	platform=$(uname | tr '[:upper:]' '[:lower:]')
+	case "${platform}" in
+	darwin) platform="macos" ;;
+	esac
+
+	local arch
+	arch=$(uname -m)
+	case "${arch}" in
+	x86_64) arch="amd64" ;;
+	aarch64) arch="arm64" ;;
+	esac
+
+	local download_url
+	download_url="https://github.com/hypnoglow/helm-s3/releases/download/v${version}/helm-s3_${version}_${platform}_${arch}.tar.gz"
+
+	mkdir -p "${bin_install_path}"
+
+	echo "Downloading helm-s3 from ${download_url}"
+
+	pushd "${bin_install_path}" >/dev/null
+
+	curl -sL "${download_url}" | tar zx -O bin/helms3 >"${bin_install_path}/helm-s3"
+
+	chmod +x "${bin_install_path}/helm-s3"
+
+	cat >"${install_path}/plugin.yaml" <<END
+name: "s3"
+version: "asdf"
+usage: "Manage chart repositories on Amazon S3"
+description: "Provides AWS S3 protocol support for charts and repos."
+command: "helm-s3"
+END
+	ln -s . "${install_path}/helm-s3"
+
+	popd >/dev/null
+
+	if command -v helm >/dev/null && ! helm plugin list | sed 1d | grep -qs '^s3[[:space:]]'; then
+		helm plugin install "${install_path}/helm-s3" || true
+	fi
+}
+
+install "${ASDF_INSTALL_TYPE}" "${ASDF_INSTALL_VERSION}" "${ASDF_INSTALL_PATH}"
