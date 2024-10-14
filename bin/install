@@ -37,7 +37,7 @@ install() {
 
 	pushd "${bin_install_path}" >/dev/null
 
-	curl -sL "${download_url}" | tar zx -O bin/helms3 >"${bin_install_path}/helm-s3"
+	curl -sL "${download_url}" | tar zx -O bin/helm-s3 >"${bin_install_path}/helm-s3"
 
 	chmod +x "${bin_install_path}/helm-s3"
 
